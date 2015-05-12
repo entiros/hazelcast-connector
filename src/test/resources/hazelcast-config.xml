@@ -7,11 +7,12 @@
       xsi:schemaLocation="
         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-        http://www.mulesoft.org/schema/mule/hazelcast http://www.mulesoft.org/schema/mule/hazelcast/1.0/mule-hazelcast.xsd">
+        http://www.mulesoft.org/schema/mule/hazelcast http://www.mulesoft.org/schema/mule/hazelcast/current/mule-hazelcast.xsd">
 
-    <hazelcast:config-type name="config" myProperty="Some string"/>
+    <hazelcast:config name="hazelcast"/>
 
     <flow name="testFlow">
-        <hazelcast:my-processor config-ref="config" content="Another string"/>
+        <hazelcast:queue-offer config-ref="hazelcast" queue="theQueue" value-ref="#[sdf]" timeout="1000"/>
+
     </flow>
 </mule>
