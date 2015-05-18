@@ -2,17 +2,63 @@
 
 <mule xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xmlns:spring="http://www.springframework.org/schema/beans"
       xmlns:hazelcast="http://www.mulesoft.org/schema/mule/hazelcast"
-      xsi:schemaLocation="
-        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-        http://www.mulesoft.org/schema/mule/hazelcast http://www.mulesoft.org/schema/mule/hazelcast/current/mule-hazelcast.xsd">
+      xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/hazelcast http://www.mulesoft.org/schema/mule/hazelcast/current/mule-hazelcast.xsd
+        http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+        ">
 
     <hazelcast:config name="hazelcast"/>
 
-    <flow name="testFlow">
-        <hazelcast:queue-offer config-ref="hazelcast" queue="theQueue" value-ref="#[sdf]" timeout="1000"/>
+    <flow name="map-put">
+        <hazelcast:map-put config-ref="hazelcast" map="theMap" key-ref="#['key']" value-ref="#[payload]"/>
+    </flow>
 
+    <flow name="map-get">
+        <hazelcast:map-get config-ref="hazelcast" map="theMap" key-ref="#['key']"/>
+    </flow>
+
+    <flow name="queue-offer">
+        <hazelcast:queue-offer config-ref="hazelcast" queue="theQueue" value-ref="#[payload]" timeout="5000"/>
+    </flow>
+
+    <flow name="queue-put">
+        <hazelcast:queue-put config-ref="hazelcast" queue="theQueue" value-ref="#[payload]"/>
+    </flow>
+
+    <flow name="queue-poll">
+        <hazelcast:queue-poll config-ref="hazelcast" queue="theQueue" timeout="5000"/>
+    </flow>
+
+    <flow name="queue-take">
+        <hazelcast:queue-take config-ref="hazelcast" queue="theQueue"/>
+    </flow>
+
+    <flow name="queue-offer-inbound">
+        <hazelcast:queue-offer config-ref="hazelcast" queue="inboundQueue" value-ref="#[payload]" timeout="5000"/>
+    </flow>
+
+    <flow name="queue-inbound">
+        <hazelcast:queue-inbound config-ref="hazelcast" queue="inboundQueue"/>
+        <vm:outbound-endpoint path="inboundQueue"/>
+    </flow>
+
+    <flow name="topic-publish">
+        <hazelcast:topic-publish config-ref="hazelcast" topic="theTopic" value-ref="#[payload]"/>
+    </flow>
+
+    <flow name="topic-inbound">
+        <hazelcast:topic-inbound config-ref="hazelcast" topic="theTopic"/>
+        <vm:outbound-endpoint path="inboundTopic"/>
+    </flow>
+
+    <flow name="lock">
+        <hazelcast:lock config-ref="hazelcast" lock="myLock" flow="lock-run-flow"/>
+    </flow>
+
+    <flow name="lock-run-flow">
+        <set-payload value="Locked"/>
+        <vm:outbound-endpoint path="lockVM"/>
     </flow>
 </mule>

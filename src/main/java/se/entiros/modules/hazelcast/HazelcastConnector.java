@@ -3,22 +3,19 @@ package se.entiros.modules.hazelcast;
 import com.hazelcast.config.Config;
 import com.hazelcast.core.*;
 import org.apache.log4j.Logger;
+import org.mule.DefaultMuleEvent;
 import org.mule.api.MuleEvent;
 import org.mule.api.MuleException;
 import org.mule.api.MuleMessage;
 import org.mule.api.annotations.Connector;
 import org.mule.api.annotations.Processor;
 import org.mule.api.annotations.Source;
-import org.mule.api.annotations.SourceStrategy;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.callback.SourceCallback;
 import org.mule.api.callback.StopSourceCallback;
-import org.mule.api.construct.FlowConstruct;
-import org.mule.api.processor.MessageProcessor;
 import org.mule.construct.Flow;
 
 import javax.inject.Inject;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -68,39 +65,95 @@ public class HazelcastConnector {
         return instance;
     }
 
+    /**
+     * Assign value to key in map
+     *
+     * @param map   map name
+     * @param key   key
+     * @param value value
+     * @return clone of previous value
+     */
     @Processor
     public Object mapPut(String map, Object key, Object value) {
         return getHazelcastInstance().getMap(map).put(key, value);
     }
 
+    /**
+     * Get value assigned to key in map
+     *
+     * @param map map name
+     * @param key key
+     * @return clone of value assigned to key
+     */
     @SuppressWarnings("unchecked")
     @Processor
     public Object mapGet(String map, Object key) {
         return getHazelcastInstance().getMap(map).get(key);
     }
 
+    /**
+     * Insert value element into queue, waiting up to the specified wait time if necessary for space to become available
+     *
+     * @param queue       queue name
+     * @param value       value to be added
+     * @param timeout     how long to wait before giving up
+     * @param timeoutUnit timeout unit
+     * @return true if successful, false otherwise
+     * @throws InterruptedException if interrupted while waiting
+     */
     @Processor
     public boolean queueOffer(String queue, Object value, Long timeout, @Default("milliseconds") TimeoutUnit timeoutUnit) throws InterruptedException {
         return getHazelcastInstance().getQueue(queue).offer(value, timeout, timeoutUnit.getUnit());
     }
 
+    /**
+     * Insert value element into queue, waiting for space to become available if necessary
+     *
+     * @param queue queue name
+     * @param value value to be added
+     * @throws InterruptedException if interrupted while waiting
+     */
     @Processor
     public void queuePut(String queue, Object value) throws InterruptedException {
         getHazelcastInstance().getQueue(queue).put(value);
     }
 
+    /**
+     * Retrieves and remove the head of this queue, waiting up to the specified wait time if necessary for an element
+     * to become available
+     *
+     * @param queue       queue name
+     * @param timeout     how long to wait before giving up
+     * @param timeoutUnit timeout unit
+     * @return head of this queue, or {@code null} if the specified waiting time elapses before an element is available
+     * @throws InterruptedException if interrupted while waiting
+     */
     @SuppressWarnings("unchecked")
     @Processor
     public Object queuePoll(String queue, Long timeout, @Default("milliseconds") TimeoutUnit timeoutUnit) throws InterruptedException {
         return getHazelcastInstance().getQueue(queue).poll(timeout, timeoutUnit.getUnit());
     }
 
+    /**
+     * Retrieves and removes the head of this queue, waiting for an element to become available if necessary
+     *
+     * @param queue queue name
+     * @return head of this queue
+     * @throws InterruptedException if interrupted while waiting
+     */
     @SuppressWarnings("unchecked")
     @Processor
     public Object queueTake(String queue) throws InterruptedException {
         return getHazelcastInstance().getQueue(queue).take();
     }
 
+    /**
+     * Retrieves and remove the head of this queue and trigger inbound
+     *
+     * @param sourceCallback {@link org.mule.api.callback.SourceCallback}
+     * @param queue          queue name
+     * @return {@link org.mule.api.callback.StopSourceCallback}
+     */
     @Source
     public StopSourceCallback queueInbound(final SourceCallback sourceCallback, final String queue) {
         final IQueue<Object> hazelcastQueue = getHazelcastInstance().getQueue(queue);
@@ -136,6 +189,24 @@ public class HazelcastConnector {
         };
     }
 
+    /**
+     * Publish value to all subscribers of this topic
+     *
+     * @param topic topic name
+     * @param value value
+     */
+    @Processor
+    public void topicPublish(String topic, Object value) {
+        getHazelcastInstance().getTopic(topic).publish(value);
+    }
+
+    /**
+     * Trigger inbound when a new element is published to this topic
+     *
+     * @param sourceCallback {@link org.mule.api.callback.SourceCallback}
+     * @param topic          topic name
+     * @return {@link org.mule.api.callback.StopSourceCallback}
+     */
     @Source
     public StopSourceCallback topicInbound(final SourceCallback sourceCallback, final String topic) {
         final ITopic<Object> hazelcastTopic = getHazelcastInstance().getTopic(topic);
@@ -159,9 +230,18 @@ public class HazelcastConnector {
         };
     }
 
+    /**
+     * Run specified flow inside a lock (if synchronous)
+     *
+     * @param event {@link org.mule.api.MuleEvent}
+     * @param lock  lock name
+     * @param flow  flow name
+     * @return {@link org.mule.api.MuleMessage}
+     * @throws MuleException
+     */
     @Processor
     @Inject
-    public MuleMessage lock(MuleEvent event, String lock, String flow) throws MuleException {
+    public MuleEvent lock(MuleEvent event, String lock, String flow) throws MuleException {
         ILock hazelcastLock = getHazelcastInstance().getLock(lock);
 
         // Lock
@@ -172,7 +252,7 @@ public class HazelcastConnector {
 
             // Run flow
             if (muleFlow != null) {
-                return muleFlow.process(event).getMessage();
+                return muleFlow.process(event);
             }
             // Flow does not exist
             else {
