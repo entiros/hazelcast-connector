@@ -231,7 +231,7 @@ public class HazelcastConnector {
     }
 
     /**
-     * Run specified flow inside a lock (if synchronous)
+     * Run specified flow inside a lock
      *
      * @param event {@link org.mule.api.MuleEvent}
      * @param lock  lock name
